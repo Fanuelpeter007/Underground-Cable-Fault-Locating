@@ -55,7 +55,7 @@ The system includes:
 ---
 
 ## Contributors
-Fanuel Petros Ghebru
-Tomas Yemane Habteab
+- **Fanuel Petros Ghebru
+- **Tomas Yemane Habteab
 
 
