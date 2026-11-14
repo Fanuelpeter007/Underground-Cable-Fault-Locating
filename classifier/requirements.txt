@@ -1,0 +1,2 @@
+edge_impulse_linux==1.2.2
+pyaudio==0.2.14
