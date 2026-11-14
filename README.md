@@ -1,61 +1,122 @@
 # Underground Cable Fault Locator
 
-## Introduction
-This project focuses on developing an **Underground Cable Fault Locator** designed to enhance the accuracy and efficiency of detecting faults in underground power transmission cables. The solution utilizes both traditional adaptive filtering techniques (such as LMS filters) and modern deep learning-based audio classification methods to isolate and detect thumping sounds emitted from fault points, despite interference from environmental noise.
+A low-cost tool that helps engineers find the exact spot of a fault in an
+underground power cable. It removes background noise from the sound of the
+fault and uses a small neural network to confirm when that sound is present.
 
-The system integrates key components, including a **STM32 microcontroller**, **Raspberry Pi**, and custom software for real-time signal analysis and fault detection.
+![Prototype during a search for a hidden thump source](docs/images/prototype-field-test.jpg)
 
----
+## Why
 
-## Methodology
+To pinpoint a cable fault, engineers send high-voltage impulses into the cable.
+The fault arcs and makes a thumping sound at ground level, and the engineer
+listens for it while walking along the cable route. Traffic, people and
+machinery can hide this sound or imitate it. Engineers often wait for night,
+when it is quiet. Commercial locators that solve this are expensive.
 
-### Problem Definition
-Locating faults in underground cables is challenging due to interference from background noise, imprecise traditional methods, and high costs associated with advanced detection equipment. This project aims to:
-- Reduce background noise using an adaptive filtering algorithm (LMS filter).
-- Implement a deep learning model to classify thumping sounds and distinguish them from noise.
-- Deliver a cost-effective solution using widely available hardware and software.
+## How it works
 
-### Proposed Design
-The system includes:
-1. **Least Mean Squares (LMS) Adaptive Filter**: Removes noise to isolate the thumping sound.
-2. **Deep Learning Audio Classification Model**: Enhances accuracy by classifying thumping sounds using features like Mel-Frequency Cepstral Coefficients (MFCCs).
-3. **Hardware Implementation**: STM32 microcontroller for real-time filtering and Raspberry Pi for audio classification.
-4. **Integration with Existing Systems**: Designed for compatibility with current underground fault-detection equipment.
+1. **Noise cancelling (STM32F401RE).** Two INMP441 microphones feed an
+   adaptive filter. The primary microphone faces the ground and hears the thump
+   plus noise. The reference microphone hears only the noise. A normalized
+   least mean squares (NLMS) filter removes the part of the primary signal that
+   matches the reference. The operator hears the result on headphones.
+2. **Thump detection (Raspberry Pi).** A classifier trained in Edge Impulse
+   (MFCC features and a 1D CNN, two classes: Noise and Thumping) shows on
+   screen when a thump is detected.
 
----
-
-## Key Features
-- **Real-time Noise Cancellation**: Adaptive filtering using LMS ensures effective background noise suppression.
-- **Accurate Fault Detection**: Deep learning model trained to identify fault-related sounds with a confidence level of 86% in prototype testing.
-- **Cost-Effectiveness**: Developed with affordable components to keep costs below 5000 AED.
-- **User-Friendly Interface**: Outputs include a graphical display for detected signals and integration with audio equipment for listening to filtered sounds.
-
----
-
-## Components and Specifications
-### Hardware
-- **STM32F401RE Microcontroller**: Handles adaptive filtering and audio signal processing.
-- **Raspberry Pi**: Runs the deep learning model for audio classification.
-- **INMP441 Microphone**: Captures sound with clarity and minimal noise susceptibility.
-- **Pmod I2S2 Module**: Interfaces the microphone with the microcontroller.
-- **3D-Printed Enclosure**: Protects internal components during operation.
-
-### Software
-- **MATLAB Simulink**: Used for LMS algorithm simulation and initial testing.
-- **Edge Impulse**: Platform for training the deep learning audio classification model.
-- **Python**: Programming language for implementing the real-time classifier on Raspberry Pi.
-
----
+![LMS adaptive filter](docs/images/lms-block-diagram.png)
 
 ## Results
-- **MATLAB Simulation**: Demonstrated effective noise cancellation for simulated and real-time audio inputs.
-- **Deep Learning Model Training**: Achieved 96% accuracy in classifying thumping sounds during training.
-- **Prototype Testing**: Successfully detected fault sounds buried under environmental noise, confirming the system's practicality.
 
----
+From the prototype tests in the [technical report](docs/UGC_Fault_Locator_Technical_Report.pdf):
 
-## Contributors
-- Fanuel Petros 
-- Tomas Yemane 
+| Test | Result |
+|---|---|
+| Classifier accuracy on the Edge Impulse test set | 96.07% (Noise 96.0%, Thumping 96.2%) |
+| Classifier F1 score | 0.97 Noise, 0.96 Thumping |
+| Prototype search for a hidden thump source | Detected at the source with 86% confidence |
+| MATLAB NLMS simulation | White noise removed from a sine wave; environmental noise reduced in real time |
+| Component cost | 1,159 AED without the Raspberry Pi board (target: under 5,000 AED) |
 
+![MATLAB NLMS results](docs/images/matlab-nlms-results.png)
 
+## Hardware
+
+- Nucleo-F401RE board
+- 2 x INMP441 I2S MEMS microphone
+- Digilent Pmod I2S2 audio module and 3.5 mm headphones
+- Raspberry Pi with screen, and a USB audio adapter with an input (TODO: Pi model)
+- 3D-printed enclosure on a pole, 9 V battery
+
+Full parts list, pin table and wiring: [hardware/README.md](hardware/README.md).
+
+## Software
+
+| Part | Requirements |
+|---|---|
+| Firmware | STM32CubeIDE, STM32CubeF4 HAL |
+| Simulation | MATLAB (no toolboxes needed) |
+| Classifier | Raspberry Pi OS (64-bit), Python 3, packages in `classifier/requirements.txt`, an Edge Impulse account to train and export the model |
+
+## Usage
+
+### Firmware
+
+Set up the STM32CubeIDE project as described in
+[firmware/stm32f401re-nlms/README.md](firmware/stm32f401re-nlms/README.md),
+then build and flash. The filter can be tested on a PC without hardware:
+
+```bash
+cd firmware/stm32f401re-nlms/test
+cc -std=c99 -O2 -I../Core/Inc test_nlms.c ../Core/Src/nlms.c -lm -o test_nlms
+./test_nlms
+```
+
+### Simulation
+
+Open `simulation/nlms_simulation.m` in MATLAB and run it. To test your own
+recordings, put `primary.wav` and `reference.wav` next to the script.
+
+### Classifier
+
+On the Raspberry Pi:
+
+```bash
+sudo apt install portaudio19-dev
+cd classifier
+pip install -r requirements.txt
+python detect_thump.py --list-devices
+python detect_thump.py --model model.eim --device 1
+```
+
+Export the model from Edge Impulse as "Linux (AARCH64)" to get `model.eim`.
+
+## Project structure
+
+```
+classifier/   Raspberry Pi thump detection script
+docs/         Technical report and figures
+firmware/     STM32F401RE NLMS noise canceller and its PC test
+hardware/     Parts list, pin table and wiring
+simulation/   MATLAB NLMS simulation
+```
+
+## Limitations
+
+- The INMP441 has low sensitivity, so the enclosure must be very close to the
+  ground above the fault.
+- Some noise still reaches the headphones after filtering.
+- Few recordings of real cable thumps exist. The classifier was trained on a
+  small data set with augmentation, and the prototype was tested indoors with a
+  recorded thump, not on a live faulted cable.
+- The filter parameters cannot be changed from the screen.
+
+## Team
+
+Electrical engineering capstone project (2023) by Fanuel Petros (team lead),
+Tomas Yemane, Abduselam Ahmed, Micheale Habte and Abdulla Abdelrahim.
+
+## License
+
+[MIT](LICENSE)
