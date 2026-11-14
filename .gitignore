@@ -1,0 +1,35 @@
+# STM32CubeIDE build output and workspace files
+Debug/
+Release/
+.metadata/
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.su
+*.list
+
+# Host test binary
+firmware/stm32f401re-nlms/test/test_nlms
+firmware/stm32f401re-nlms/test/test_nlms.exe
+
+# MATLAB
+*.asv
+*.slxc
+slprj/
+simulation/*.wav
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Edge Impulse model files
+*.eim
+
+# OS files
+.DS_Store
+Thumbs.db
